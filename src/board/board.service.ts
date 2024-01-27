@@ -30,12 +30,11 @@ export class BoardService {
 
   createArticle(title: string, content: string, password: number) {
     this.articleRepository.insert({
-      // 일단, 편의를 위해 author는 잠시 test로 고정합니다.
+      // 일단, 편의를 위해 author는 잠시 test로 고정
       author: 'test',
       title,
       content,
-      // 마찬가지로, password도 잠시 숫자를 문자열로 바꾸겠습니다.
-      // 나중에 암호화된 비밀번호를 저장하도록 하겠습니다.
+      // 나중에 암호화된 비밀번호를 저장
       password: password.toString(),
     });
   }

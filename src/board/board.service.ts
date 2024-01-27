@@ -3,55 +3,71 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
 import _ from 'lodash';
+import { Repository } from 'typeorm';
+import { Article } from './article.entity';
 
 @Injectable()
 export class BoardService {
-  // 데이터베이스를 사용하지 않아 일단은 배열로 구현
-  // 보통은 TypeORM 모듈을 이용하여 리포지토리를 의존
-  private articles = [];
+  constructor(
+    @InjectRepository(Article) private articleRepository: Repository<Article>,
+  ) {}
 
-  // 게시글 비밀번호를 저장하기 위한 Map 객체
-  private articlePasswords = new Map();
-
-  getArticles() {
-    return this.articles;
+  async getArticles() {
+    return await this.articleRepository.find({
+      where: { deletedAt: null },
+      select: ['author', 'title', 'createdAt'],
+    });
   }
 
-  getArticleById(id: number) {
-    return this.articles.find((article) => article.id === id);
+  async getArticleById(id: number) {
+    return await this.articleRepository.findOne({
+      where: { id, deletedAt: null },
+      select: ['author', 'title', 'content', 'createdAt', 'updatedAt'],
+    });
   }
 
   createArticle(title: string, content: string, password: number) {
-    const articleId = this.articles.length + 1;
-    this.articles.push({ id: articleId, title, content });
-    this.articlePasswords.set(articleId, password);
-    return articleId;
+    this.articleRepository.insert({
+      // 일단, 편의를 위해 author는 잠시 test로 고정합니다.
+      author: 'test',
+      title,
+      content,
+      // 마찬가지로, password도 잠시 숫자를 문자열로 바꾸겠습니다.
+      // 나중에 암호화된 비밀번호를 저장하도록 하겠습니다.
+      password: password.toString(),
+    });
   }
 
-  updateArticle(id: number, title: string, content: string, password: number) {
-    if (this.articlePasswords.get(id) !== password) {
-      throw new UnauthorizedException(
-        `Article password is not correct. id: ${id}`,
-      );
-    }
+  async updateArticle(
+    id: number,
+    title: string,
+    content: string,
+    password: number,
+  ) {
+    await this.checkPassword(id, password);
+    this.articleRepository.update(id, { title, content });
+  }
 
-    const article = this.getArticleById(id);
+  async deleteArticle(id: number, password: number) {
+    await this.checkPassword(id, password);
+    this.articleRepository.softDelete(id); // soft delete를 시켜주는 것이 핵심!
+  }
+
+  private async checkPassword(id: number, password: number) {
+    const article = await this.articleRepository.findOne({
+      where: { id, deletedAt: null },
+      select: ['password'],
+    });
     if (_.isNil(article)) {
       throw new NotFoundException(`Article not found. id: ${id}`);
     }
 
-    article.title = title;
-    article.content = content;
-  }
-
-  deleteArticle(id: number, password: number) {
-    if (this.articlePasswords.get(id) !== password) {
+    if (article.password !== password.toString()) {
       throw new UnauthorizedException(
         `Article password is not correct. id: ${id}`,
       );
     }
-
-    this.articles = this.articles.filter((article) => article.id !== id);
   }
 }

@@ -7,7 +7,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 
-@Entity({ schema: 'test', name: 'articles' })
+@Entity({ schema: 'ttt', name: 'articles' })
 export class Article {
   @PrimaryGeneratedColumn({ type: 'int', name: 'id' })
   id: number;
